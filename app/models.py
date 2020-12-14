@@ -2223,9 +2223,11 @@ class BroadcastMessage(db.Model):
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'))
     service = db.relationship('Service', backref='broadcast_messages')
 
-    template_id = db.Column(UUID(as_uuid=True), nullable=False)
-    template_version = db.Column(db.Integer, nullable=False)
+    template_id = db.Column(UUID(as_uuid=True), nullable=True)
+    template_version = db.Column(db.Integer, nullable=True)
     template = db.relationship('TemplateHistory', backref='broadcast_messages')
+
+    raw_content = db.Column(db.String, nullable=True)
 
     _personalisation = db.Column(db.String, nullable=True)
     # defaults to empty list
@@ -2258,6 +2260,8 @@ class BroadcastMessage(db.Model):
 
     @property
     def content(self):
+        if self.raw_content:
+            return self.raw_content
         return self.template._as_utils_template_with_personalisation(
             self.personalisation
         ).content_with_placeholders_filled_in
