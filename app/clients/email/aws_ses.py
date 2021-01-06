@@ -63,6 +63,9 @@ class AwsSesClient(EmailClient):
         self._client.meta.events.register('request-created.ses.SendEmail', self.ses_request_created_hook)
         self._client.meta.events.register('response-received.ses.SendEmail', self.ses_response_received_hook)
 
+        # add http keep-alive header so that TLS connections are re-used
+        self._client.meta.events.register('before-call.ses', self.ses_inject_connection_header)
+
     def ses_request_created_hook(self, **kwargs):
         # request created may be called multiple times if the request auto-retries. We want to count all these as the
         # same request for timing purposes, so only reset the start time if it was cleared completely
@@ -73,6 +76,11 @@ class AwsSesClient(EmailClient):
         # response received may be called multiple times if the request auto-retries, however, we want to count the last
         # time it triggers for timing purposes, so always reset the elapsed time
         self.ses_elapsed_time = monotonic() - self.ses_start_time
+
+    def ses_inject_connection_header(self, params, **kwargs):
+        # keep underlying TLS connection open, so we do not spend lots of CPU
+        # and network time renegotiating TLS
+        params['headers']['Connection'] = 'Keep-Alive'
 
     def get_name(self):
         return self.name
